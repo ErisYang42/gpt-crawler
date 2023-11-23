@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 import { program } from "commander";
+import inquirer from "inquirer";
+import { createRequire } from "node:module";
 import { Config } from "./config.js";
 import { crawl, write } from "./core.js";
-import { createRequire } from "node:module";
-import inquirer from "inquirer";
 
 const require = createRequire(import.meta.url);
 const { version, description } = require("../../package.json");
@@ -15,6 +15,7 @@ const messages = {
   selector: "What is the CSS selector you want to match?",
   maxPagesToCrawl: "How many pages do you want to crawl?",
   outputFileName: "What is the name of the output file?",
+  proxyUrl: "What is the proxy url?",
 };
 
 async function handler(options: Config) {
@@ -92,6 +93,7 @@ program
     messages.outputFileName,
     "output.json",
   )
+  .option("-p, --proxyUrl <string>", messages.proxyUrl, "")
   .action(handler);
 
 program.parse();

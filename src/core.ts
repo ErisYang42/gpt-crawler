@@ -1,10 +1,10 @@
 // For more information, see https://crawlee.dev/
-import { PlaywrightCrawler, downloadListOfUrls } from "crawlee";
+import { PlaywrightCrawler, ProxyConfiguration, downloadListOfUrls } from "crawlee";
 import { readFile, writeFile } from "fs/promises";
 import { glob } from "glob";
-import { Config, configSchema } from "./config.js";
-import { Page } from "playwright";
 import { isWithinTokenLimit } from "gpt-tokenizer";
+import { Page } from "playwright";
+import { Config, configSchema } from "./config.js";
 
 let pageCounter = 0;
 
@@ -50,11 +50,27 @@ export async function crawl(config: Config) {
   configSchema.parse(config);
 
   if (process.env.NO_CRAWL !== "true") {
+    let proxyConfig;
+    if (config.proxyUrl) {
+      proxyConfig = new ProxyConfiguration({
+      proxyUrls: [
+        config.proxyUrl,
+      ]
+      });
+    }
+
+    let maxPagesPerCrawl = Infinity;
+    if (config.maxPagesToCrawl) {
+      maxPagesPerCrawl = config.maxPagesToCrawl;
+    }
+
     // PlaywrightCrawler crawls the web using a headless
     // browser controlled by the Playwright library.
     const crawler = new PlaywrightCrawler({
+      proxyConfiguration: proxyConfig,
       // Use the requestHandler to process each of the crawled pages.
-      async requestHandler({ request, page, enqueueLinks, log, pushData }) {
+      async requestHandler({ request, page, enqueueLinks, log, pushData, proxyInfo }) {
+        const usedProxyUrl = proxyInfo?.url;
         if (config.cookie) {
           // Set the cookie for the specific URL
           const cookie = {
@@ -68,7 +84,7 @@ export async function crawl(config: Config) {
         const title = await page.title();
         pageCounter++;
         log.info(
-          `Crawling: Page ${pageCounter} / ${config.maxPagesToCrawl} - URL: ${request.loadedUrl}...`,
+          `Crawling: Page ${pageCounter} / ${maxPagesPerCrawl} - URL: ${request.loadedUrl}...`
         );
 
         // Use custom handling for XPath selector
@@ -89,7 +105,11 @@ export async function crawl(config: Config) {
         const html = await getPageHtml(page, config.selector);
 
         // Save results as JSON to ./storage/datasets/default
-        await pushData({ title, url: request.loadedUrl, html });
+        if (config.extractUrlOnly) {
+          await pushData({ title, url: request.loadedUrl });
+        } else {
+          await pushData({ title, url: request.loadedUrl, html });
+        }
 
         if (config.onVisitPage) {
           await config.onVisitPage({ page, pushData });
@@ -98,12 +118,13 @@ export async function crawl(config: Config) {
         // Extract links from the current page
         // and add them to the crawling queue.
         await enqueueLinks({
-          globs:
-            typeof config.match === "string" ? [config.match] : config.match,
+          //globs: typeof config.match === "string" ? [config.match] : config.match,
+          globs: typeof config.match === "string" ? [config.match] : config.match,
+          transformRequestFunction: (request) => request.url.includes('?') ? null : request,
         });
       },
       // Comment this option to scrape the full website.
-      maxRequestsPerCrawl: config.maxPagesToCrawl,
+      maxRequestsPerCrawl: maxPagesPerCrawl,
       // Uncomment this option to see the browser window.
       // headless: false,
       preNavigationHooks: [

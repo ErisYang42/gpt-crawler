@@ -29,7 +29,7 @@ export const configSchema = z.object({
    * Don't crawl more than this many pages
    * @default 50
    */
-  maxPagesToCrawl: z.number().int().positive(),
+  maxPagesToCrawl: z.number().int().positive().optional(),
   /**
    * File name for the finished data
    * @default "output.json"
@@ -70,6 +70,8 @@ export const configSchema = z.object({
    * @example 5000
    */
   maxTokens: z.number().int().positive().optional(),
+  proxyUrl: z.string().optional(),
+  extractUrlOnly: z.boolean().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
