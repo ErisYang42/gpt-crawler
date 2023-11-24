@@ -122,9 +122,17 @@ export async function crawl(config: Config) {
           globs: typeof config.match === "string" ? [config.match] : config.match,
           transformRequestFunction: (request) => request.url.includes('?') ? null : request,
         });
+
+        await page.close();
       },
-      // Comment this option to scrape the full website.
-      maxRequestsPerCrawl: maxPagesPerCrawl,
+      failedRequestHandler: async ({ request, error, log }) => {
+        log.error(`Request failed for ${request.url}: ${error}`);
+      },
+      maxRequestsPerCrawl: config.maxPagesToCrawl,
+      // to limit rate of requests, and ensure the crawler doesn't get blocked
+      maxRequestsPerMinute: config.maxRequestsPerMinute,
+      // to limit the number of concurrent requests, and limit the memory usage
+      maxConcurrency: config.maxConcurrency,
       // Uncomment this option to see the browser window.
       // headless: false,
       preNavigationHooks: [

@@ -72,6 +72,8 @@ export const configSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
   proxyUrl: z.string().optional(),
   extractUrlOnly: z.boolean().optional(),
+  maxRequestsPerMinute: z.number().int().positive().optional(),
+  maxConcurrency: z.number().int().positive().optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
